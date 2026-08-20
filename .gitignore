@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.env
+venv/
+.venv/
+indexing/indices/
+*.faiss
+*.pkl
+benchmarks/results/
+.DS_Store
+node_modules/
