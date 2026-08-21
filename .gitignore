@@ -9,3 +9,4 @@ indexing/indices/
 benchmarks/results/
 .DS_Store
 node_modules/
+PROJECT_MAP.md
