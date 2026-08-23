@@ -4,6 +4,8 @@ __pycache__/
 venv/
 .venv/
 indexing/indices/
+indexing/corpus_english.jsonl
+indexing/corpus_sample.jsonl
 *.faiss
 *.pkl
 benchmarks/results/
