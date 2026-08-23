@@ -1,14 +1,10 @@
-"""Inspect MSMARCO-XI schema directly via pandas, bypassing datasets' builder.
-
-Run list_files.py first to confirm the exact filename to use below.
-"""
+"""Inspect MSMARCO-XI schema directly via pandas, bypassing datasets' builder."""
 import pandas as pd
 from huggingface_hub import hf_hub_download
 
-# TODO: replace filename once list_files.py output confirms exact path
 path = hf_hub_download(
     repo_id="ai4bharat/MSMARCO-XI",
-    filename="train/hintrain.parquet",  # placeholder — update after checking file list
+    filename="train/hintrain.parquet",
     repo_type="dataset",
 )
 
