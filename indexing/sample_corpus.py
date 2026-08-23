@@ -8,7 +8,7 @@ import random
 
 random.seed(42)
 
-TARGET_QUERIES = 15000 #~80K passages at 10/query
+TARGET_QUERIES = 15000  # ~80K passages at 10/query
 
 queries_by_id = {}
 with open("indexing/corpus_english.jsonl", encoding="utf-8") as f:
