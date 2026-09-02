@@ -5,13 +5,13 @@ from backend.retriever import hybrid
 
 class RAGHarness:
     async def run(self, audio_bytes: bytes) -> RAGResponse:
-        # TODO Day 1-2: wire stages in order
-        # query = await stt.transcribe(audio_bytes)
-        # guardrails.check_input(query)
-        # strategy = classifier.classify(query)
-        # chunks = await hybrid.retrieve(query, strategy)
-        # chunks = rerank(query, chunks)
-        # guardrails.check_grounding(query, chunks)
-        # answer = await generator.generate(query, chunks)
-        # guardrails.check_output(answer, chunks)
+        query = await stt.transcribe(audio_bytes)
+
+        is_safe, reason = guardrails.check_input(query)
+        if not is_safe:
+            raise ValueError(reason)
+
+        strategy = classifier.classify(query)
+        chunks = await hybrid.retrieve(query, None, None, strategy)  # stores wired next
+        # TODO: rerank, grounding check, generate, output guardrail
         raise NotImplementedError
