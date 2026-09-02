@@ -9,10 +9,10 @@ Hybrid Retrieval (FAISS + BM25, parallel) → RRF Fusion → Cross-Encoder Reran
 Guardrails → Claude Haiku Generation → Structured Output
 
 Four chunking strategies, selected at query time rather than applied uniformly:
-- **Semantic** — splits at embedding-similarity shifts
+- **Semantic** — splits at embedding-similarity shifts between sentences
 - **Sliding window** — fixed 256-token chunks, 64-token overlap
 - **Hierarchical** — parent-child chunks (512/64 tokens), retrieves child, returns parent context
-- **Metadata-aware** — respects passage boundaries, filters by language/query_type
+- **Metadata-aware** — whole-passage chunks, tagged with query_type/is_selected/language for filtered retrieval
 
 ## Dataset
 
@@ -35,7 +35,7 @@ cp .env.example .env             # fill in SARVAM_API_KEY and ANTHROPIC_API_KEY
 
 ### GPU machine only (indexing, embeddings)
 
-Blackwell-series GPUs (RTX 50xx) need a nightly PyTorch build with CUDA 12.8 support — the stable/cu121/cu124 builds don't recognize `sm_120` yet:
+Blackwell-series GPUs (RTX 50xx) need a nightly PyTorch build with CUDA 12.8 support — stable/cu121/cu124 builds don't recognize `sm_120`:
 
 \`\`\`bash
 pip uninstall torch -y
@@ -57,13 +57,31 @@ uvicorn main:app --reload
 ## Building the corpus + indices (GPU machine)
 
 \`\`\`bash
-python indexing/inspect_dataset.py       # confirm schema
-python indexing/build_corpus.py          # flatten full dataset -> corpus_english.jsonl
-python indexing/sample_corpus.py         # stratified sample -> corpus_sample.jsonl
-python indexing/build_strategy2_index.py # build sliding-window FAISS index
+python indexing/inspect_dataset.py               # confirm schema
+python indexing/build_corpus.py                  # flatten full dataset -> corpus_english.jsonl
+python indexing/sample_corpus.py                 # stratified sample -> corpus_sample.jsonl
+python indexing/build_strategy2_index.py         # sliding window FAISS index
+python indexing/build_strategy3_hierarchical.py  # hierarchical parent-child FAISS index
+python indexing/build_strategy1_semantic.py      # semantic FAISS index
+python indexing/build_strategy4_metadata.py      # metadata-aware FAISS index
 \`\`\`
 
-Corpus and index files are gitignored (too large for GitHub). Share via Drive if the other collaborator needs them directly rather than rebuilding.
+Corpus and index files are gitignored (too large for GitHub). Shared via Drive between collaborators rather than committed.
+
+### Index sizes (15K query / ~150K passage sample)
+
+| Strategy | Chunks | Notes |
+|---|---|---|
+| Sliding window | 149,793 | 256 tokens, 64 overlap |
+| Hierarchical | 189,910 children | across 149,784 parents |
+| Semantic | 298,409 | variable length, similarity-split |
+| Metadata-aware | 149,784 | whole passages, no sub-splitting |
+
+## BM25
+
+\`\`\`bash
+python -m backend.retriever.bm25_store   # builds indexing/indices/bm25_index.pkl
+\`\`\`
 
 ## Team
 
@@ -72,4 +90,8 @@ Corpus and index files are gitignored (too large for GitHub). Share via Drive if
 
 ## Status
 
-🚧 Day 1–2 — corpus built and sampled, first FAISS index (sliding window) in progress. STT pipeline confirmed working end-to-end.
+✅ All 4 chunking strategies built and indexed
+✅ BM25 index built
+✅ Guardrails Layers 1 & 2 live
+✅ STT confirmed working end-to-end
+🚧 Next: wire `faiss_store.py` to load all 4 indices, finish `hybrid.py` RRF fusion, full harness integration
