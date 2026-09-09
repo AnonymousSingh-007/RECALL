@@ -1,11 +1,11 @@
+"""Parallel hybrid retrieval: FAISS + BM25, fused via Reciprocal Rank Fusion."""
 import asyncio
 
 
 def reciprocal_rank_fusion(faiss_results: list[dict], bm25_results: list[dict], k: int = 60) -> list[dict]:
     """Fuse FAISS and BM25 result lists using Reciprocal Rank Fusion.
 
-    Both inputs are lists of dicts with at least a unique identifier field.
-    We key on (query_id, passage_idx) since that's the common identifier
+    Keys on (query_id, passage_idx) since that's the shared identifier
     across both FAISS metadata and BM25 results.
     """
     scores: dict[tuple, float] = {}
@@ -30,10 +30,9 @@ async def retrieve(query: str, faiss_store, bm25_store, strategies: list[str], k
     loop = asyncio.get_event_loop()
 
     async def run_faiss():
-        # TODO: once faiss_store.search() is wired to return dicts with
-        # query_id/passage_idx/text (matching your metadata jsonl format),
-        # call it here per selected strategy and merge results across strategies
-        return []
+        return await loop.run_in_executor(
+            None, faiss_store.search_multi, strategies, query, k
+        )
 
     async def run_bm25():
         return await loop.run_in_executor(None, bm25_store.search, query, k)
