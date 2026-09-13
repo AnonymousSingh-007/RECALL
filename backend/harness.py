@@ -1,8 +1,8 @@
 from backend.schemas import RAGResponse, ChunkSource, LatencyBreakdown
 from backend import stt, classifier, guardrails, generator
 from backend.retriever import hybrid
+from backend.reranker import rerank
 from backend.latency import LatencyTracker
-import time
 
 
 class RAGHarness:
@@ -30,8 +30,8 @@ class RAGHarness:
         if not guardrails.check_relevance(top_faiss_score, top_faiss_score):
             raise ValueError("Not enough context in my knowledge base.")
 
-        # TODO: reranker goes here, before generation
-        top_chunks = chunks[:3]
+        with tracker.track("rerank"):
+            top_chunks = rerank(query, chunks, top_k=3)
 
         with tracker.track("generate"):
             answer_text = await generator.generate(query, [
@@ -48,7 +48,7 @@ class RAGHarness:
                     chunk_id=f"{c['query_id']}_{c['passage_idx']}",
                     text=c["text"],
                     strategy=c.get("strategy", "bm25"),
-                    score=c["rrf_score"],
+                    score=c.get("rerank_score", c["rrf_score"]),
                 )
                 for c in top_chunks
             ],
@@ -59,7 +59,7 @@ class RAGHarness:
                 stt_ms=tracker.stages.get("stt", 0),
                 classify_ms=tracker.stages.get("classify", 0),
                 retrieve_ms=tracker.stages.get("retrieve", 0),
-                rerank_ms=0,
+                rerank_ms=tracker.stages.get("rerank", 0),
                 guardrail_ms=0,
                 generate_ms=tracker.stages.get("generate", 0),
                 total_ms=tracker.total_ms,
