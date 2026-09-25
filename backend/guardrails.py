@@ -1,4 +1,4 @@
-"""Guardrail layers 1 and 2. No dependency on retrieval/indexing work."""
+"""Guardrail layers. No dependency on retrieval/indexing work."""
 
 BLOCKLIST = {
     "kill", "bomb", "weapon", "hack password",
@@ -15,16 +15,15 @@ def check_input(query: str) -> tuple[bool, str | None]:
     return True, None
 
 
-def check_relevance(faiss_top_score: float, bm25_top_score: float,
-                     faiss_threshold: float = 0.35,
-                     bm25_threshold: float = 0.20) -> bool:
-    """Layer 2: relevance gate. True = enough context exists to answer."""
-    return faiss_top_score >= faiss_threshold or bm25_top_score >= bm25_threshold
+def check_relevance(top_score: float, threshold: float = 0.01) -> bool:
+    """Layer 2: relevance gate. Works with RRF scores (0.001 - 0.15 range).
+    Returns True if enough context exists to answer."""
+    return top_score >= threshold
 
 
 def check_grounding(answer: str, retrieved_chunks: list[str],
                      min_overlap: float = 0.3) -> bool:
-    """Layer 4 placeholder: crude word-overlap grounding check.
+    """Layer 4: word-overlap grounding check.
     Will be replaced with spaCy noun-phrase overlap later."""
     context = " ".join(retrieved_chunks).lower()
     words = [w for w in answer.lower().split() if len(w) > 4]
