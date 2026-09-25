@@ -1,4 +1,7 @@
 """First full end-to-end harness test: audio in, answer out."""
+from dotenv import load_dotenv
+load_dotenv()
+
 import asyncio
 from backend.harness import RAGHarness
 from backend.retriever.faiss_store import FaissStore
