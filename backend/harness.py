@@ -14,7 +14,9 @@ class RAGHarness:
         tracker = LatencyTracker()
 
         with tracker.track("stt"):
-            query = await stt.transcribe(audio_bytes)
+            stt_result = await stt.transcribe(audio_bytes)
+            query = stt_result["transcript"]
+            detected_language = stt_result.get("language_code", "unknown")
 
         is_safe, reason = guardrails.check_input(query)
         if not is_safe:
@@ -64,6 +66,6 @@ class RAGHarness:
                 generate_ms=tracker.stages.get("generate", 0),
                 total_ms=tracker.total_ms,
             ),
-            query_language="en",
+            query_language=detected_language,
             query_text=query,
         )
