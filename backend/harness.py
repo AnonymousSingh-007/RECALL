@@ -28,8 +28,8 @@ class RAGHarness:
         with tracker.track("retrieve"):
             chunks = await hybrid.retrieve(query, self.faiss_store, self.bm25_store, strategies, k=10)
 
-        top_faiss_score = chunks[0]["rrf_score"] if chunks else 0.0
-        if not guardrails.check_relevance(top_faiss_score, top_faiss_score):
+        top_score = chunks[0]["rrf_score"] if chunks else 0.0
+        if not guardrails.check_relevance(top_score):
             raise ValueError("Not enough context in my knowledge base.")
 
         with tracker.track("rerank"):
@@ -55,7 +55,7 @@ class RAGHarness:
                 for c in top_chunks
             ],
             strategy_used=strategies,
-            confidence=top_faiss_score,
+            confidence=top_score,
             grounded=grounded,
             latency_breakdown=LatencyBreakdown(
                 stt_ms=tracker.stages.get("stt", 0),
