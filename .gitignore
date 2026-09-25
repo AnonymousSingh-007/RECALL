@@ -8,6 +8,7 @@ indexing/corpus_english.jsonl
 indexing/corpus_sample.jsonl
 *.faiss
 *.pkl
+test_data/
 benchmarks/results/
 .DS_Store
 node_modules/

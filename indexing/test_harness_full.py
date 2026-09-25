@@ -14,7 +14,7 @@ async def main():
 
     harness = RAGHarness(faiss_store, bm25_store)
 
-    with open("path/to/your/test_audio.mp3", "rb") as f:
+    with open(r"test_data\sample_query.mp3", "rb") as f:
         audio_bytes = f.read()
 
     response = await harness.run(audio_bytes)
