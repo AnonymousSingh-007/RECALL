@@ -22,6 +22,7 @@ async def main():
 
     response = await harness.run(audio_bytes)
 
+    print("Transcribed query:", response.query_text)
     print("Answer:", response.answer)
     print("\nStrategy used:", response.strategy_used)
     print("Grounded:", response.grounded)
