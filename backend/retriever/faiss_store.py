@@ -9,7 +9,7 @@ STRATEGIES = ["semantic", "sliding_window", "hierarchical", "metadata_aware"]
 STRATEGY_META_FILES = {
     "semantic": "semantic_meta.jsonl",
     "sliding_window": "sliding_window_meta.jsonl",
-    "hierarchical": "hierarchical_child_meta.jsonl",  # needs parent lookup join
+    "hierarchical": "hierarchical_child_meta.jsonl",
     "metadata_aware": "metadata_aware_meta.jsonl",
 }
 
@@ -24,7 +24,7 @@ class FaissStore:
 
     def load(self):
         print("Loading embedding model...")
-        self.model = SentenceTransformer("all-MiniLM-L6-v2")  # CPU fine at inference
+        self.model = SentenceTransformer("all-MiniLM-L6-v2")
 
         for strategy in STRATEGIES:
             index_path = f"{self.index_dir}/{strategy}.faiss"
@@ -36,7 +36,6 @@ class FaissStore:
             with open(meta_path, encoding="utf-8") as f:
                 self.metadata[strategy] = [json.loads(line) for line in f]
 
-        # hierarchical needs the parent lookup joined in separately
         parent_path = f"{self.index_dir}/hierarchical_parent_lookup.jsonl"
         with open(parent_path, encoding="utf-8") as f:
             for line in f:
@@ -45,11 +44,15 @@ class FaissStore:
 
         print("All indices loaded.")
 
-    def search(self, strategy: str, query: str, k: int = 20) -> list[dict]:
+    def _encode_query(self, query: str) -> np.ndarray:
+        """Encode query once, return reusable vector."""
+        return self.model.encode([query], convert_to_numpy=True).astype("float32")
+
+    def search(self, strategy: str, query_vec: np.ndarray, k: int = 20) -> list[dict]:
+        """Search a single strategy using a pre-encoded query vector."""
         if strategy not in self.indices:
             return []
 
-        query_vec = self.model.encode([query], convert_to_numpy=True).astype("float32")
         scores, ids = self.indices[strategy].search(query_vec, k)
 
         results = []
@@ -81,8 +84,9 @@ class FaissStore:
         return results
 
     def search_multi(self, strategies: list[str], query: str, k: int = 20) -> list[dict]:
-        """Search multiple strategies and merge results."""
+        """Encode once, search multiple strategies with the same vector."""
+        query_vec = self._encode_query(query)
         all_results = []
         for strategy in strategies:
-            all_results.extend(self.search(strategy, query, k))
+            all_results.extend(self.search(strategy, query_vec, k))
         return all_results
