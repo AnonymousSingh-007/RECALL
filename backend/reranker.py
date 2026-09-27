@@ -1,4 +1,5 @@
 """Cross-encoder reranker — reorders fused RRF results by actual relevance."""
+import torch
 from sentence_transformers import CrossEncoder
 
 _model: CrossEncoder | None = None
@@ -7,7 +8,8 @@ _model: CrossEncoder | None = None
 def load_reranker():
     global _model
     if _model is None:
-        _model = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-2-v2")
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        _model = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-2-v2", device=device)
     return _model
 
 
