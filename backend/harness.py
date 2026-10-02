@@ -18,9 +18,15 @@ class RAGHarness:
             query = stt_result["transcript"]
             detected_language = stt_result.get("language_code", "unknown")
 
-        is_safe, reason = guardrails.check_input(query)
-        if not is_safe:
-            raise ValueError(reason)
+        with tracker.track("guardrail"):
+            is_safe, reason = guardrails.check_input(query)
+            if not is_safe:
+                raise ValueError(reason)
+
+            lang_ok, lang_reason = guardrails.check_language(query)
+            if not lang_ok:
+                raise ValueError(lang_reason)
+
 
         with tracker.track("classify"):
             strategies = classifier.classify(query)
@@ -62,7 +68,7 @@ class RAGHarness:
                 classify_ms=tracker.stages.get("classify", 0),
                 retrieve_ms=tracker.stages.get("retrieve", 0),
                 rerank_ms=tracker.stages.get("rerank", 0),
-                guardrail_ms=0,
+                guardrail_ms=tracker.stages.get("guardrail", 0),
                 generate_ms=tracker.stages.get("generate", 0),
                 total_ms=tracker.total_ms,
             ),

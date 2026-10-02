@@ -21,7 +21,7 @@ async def transcribe(audio_bytes: bytes, filename: str = "audio.wav", content_ty
                     SARVAM_STT_URL,
                     headers={"api-subscription-key": SARVAM_API_KEY},
                     files={"file": (filename, audio_bytes, content_type)},
-                    data={"model": "saaras:v3"},
+                    data={"model": "saaras:v2"},
                 )
                 resp.raise_for_status()
                 body = resp.json()
