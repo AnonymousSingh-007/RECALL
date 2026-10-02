@@ -15,7 +15,6 @@ def load_reranker():
 
 
 def rerank(query: str, chunks: list[dict], top_k: int = 3) -> list[dict]:
-    """Score each chunk against the query with a cross-encoder, return top_k."""
     if not chunks:
         return []
 
