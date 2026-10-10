@@ -45,11 +45,9 @@ class FaissStore:
         print("All indices loaded.")
 
     def _encode_query(self, query: str) -> np.ndarray:
-        """Encode query once, return reusable vector."""
         return self.model.encode([query], convert_to_numpy=True).astype("float32")
 
     def search(self, strategy: str, query_vec: np.ndarray, k: int = 20) -> list[dict]:
-        """Search a single strategy using a pre-encoded query vector."""
         if strategy not in self.indices:
             return []
 
@@ -84,9 +82,15 @@ class FaissStore:
         return results
 
     def search_multi(self, strategies: list[str], query: str, k: int = 20) -> list[dict]:
-        """Encode once, search multiple strategies with the same vector."""
         query_vec = self._encode_query(query)
         all_results = []
         for strategy in strategies:
             all_results.extend(self.search(strategy, query_vec, k))
         return all_results
+
+
+def load_all_stores(index_dir: str = "indexing/indices") -> "FaissStore":
+    """Convenience loader used by main.py at startup."""
+    store = FaissStore(index_dir)
+    store.load()
+    return store

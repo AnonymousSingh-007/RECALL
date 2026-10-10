@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from pathlib import Path
+import traceback
 
 load_dotenv()
 
@@ -16,8 +17,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Serve frontend static files
 FRONTEND_DIR = Path(__file__).parent / "frontend"
+
+faiss_store = None
+bm25_store = None
+harness = None
+
+
+@app.on_event("startup")
+async def startup():
+    global faiss_store, bm25_store, harness
+    from backend.harness import RAGHarness
+    from backend.retriever.faiss_store import load_all_stores
+    from backend.retriever.bm25_store import load_bm25
+
+    print("RECALL: loading indices...")
+    faiss_store = load_all_stores()
+    bm25_store = load_bm25()
+    harness = RAGHarness(faiss_store, bm25_store)
+    print("RECALL: all indices loaded, harness ready.")
 
 
 @app.get("/")
@@ -27,7 +45,7 @@ async def serve_index():
 
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
-# Also serve CSS/JS at root level so relative paths in index.html work
+
 @app.get("/style.css")
 async def serve_css():
     return FileResponse(FRONTEND_DIR / "style.css", media_type="text/css")
@@ -40,82 +58,28 @@ async def serve_js():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "RECALL"}
+    return {"status": "ok", "service": "RECALL", "harness_ready": harness is not None}
 
 
 @app.post("/query")
 async def query_endpoint(file: UploadFile = File(...)):
-    """Accept an audio file (multipart), run full RAG pipeline.
-
-    Returns the complete RAGResponse when the harness is wired up.
-    Falls back to STT-only mode if indices aren't loaded yet.
-    """
-    from backend import stt, guardrails
+    """Accept an audio file (multipart), run full RAG pipeline."""
     from backend.latency import LatencyTracker
 
     audio_bytes = await file.read()
     if not audio_bytes:
         raise HTTPException(status_code=400, detail="Empty audio file")
 
-    tracker = LatencyTracker()
+    if harness is None:
+        raise HTTPException(status_code=503, detail="Harness not ready yet — server still starting up")
 
     try:
-        # --- STT ---
-        with tracker.track("stt"):
-            result = await stt.transcribe(
-                audio_bytes,
-                filename=file.filename or "audio.wav",
-                content_type=file.content_type or "audio/wav",
-            )
-
-        query = result["transcript"]
-        detected_language = result["language_code"]
-
-        # --- Guardrails Layer 1: input safety ---
-        is_safe, reason = guardrails.check_input(query)
-        if not is_safe:
-            raise HTTPException(status_code=400, detail=reason)
-
-        # --- Guardrails Layer 3: language mismatch ---
-        lang_ok, lang_reason = guardrails.check_language(query)
-        if not lang_ok:
-            raise HTTPException(status_code=400, detail=lang_reason)
-
-        # --- Try full harness if indices are loaded ---
-        try:
-            from backend.harness import RAGHarness
-            from backend.retriever.faiss_store import load_all_stores
-            from backend.retriever.bm25_store import load_bm25
-
-            faiss_store = load_all_stores()
-            bm25_store = load_bm25()
-            harness = RAGHarness(faiss_store, bm25_store)
-            response = await harness.run(audio_bytes)
-            return response.model_dump()
-
-        except (ImportError, FileNotFoundError, Exception):
-            # Indices not available yet — return STT-only response
-            # with a mock answer shape so frontend can render it
-            return {
-                "answer": f"[STT-only mode] Transcript: {query}",
-                "sources": [],
-                "strategy_used": [],
-                "confidence": 0.0,
-                "grounded": True,
-                "latency_breakdown": {
-                    "stt_ms": tracker.stages.get("stt", 0),
-                    "classify_ms": 0,
-                    "retrieve_ms": 0,
-                    "rerank_ms": 0,
-                    "guardrail_ms": 0,
-                    "generate_ms": 0,
-                    "total_ms": tracker.total_ms,
-                },
-                "query_language": detected_language,
-                "query_text": query,
-            }
-
-    except HTTPException:
-        raise
-    except RuntimeError as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
+        response = await harness.run(audio_bytes)
+        return response.model_dump()
+    except ValueError as exc:
+        # guardrail rejections (unsafe input, language mismatch, no relevant context)
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        print(f"Harness failed: {exc}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal error: {exc}")

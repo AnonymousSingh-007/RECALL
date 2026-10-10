@@ -53,15 +53,10 @@ def _get_nlp():
         import spacy  # type: ignore  # installed at runtime; IDE may not detect lazy import
         for model_name in ("en_core_web_md", "en_core_web_sm"):
             try:
-                _nlp = spacy.load(model_name, disable=["ner", "parser", "textcat"])
+                _nlp = spacy.load(model_name, disable=["ner", "textcat"])
                 break
             except OSError:
                 continue
-        if _nlp is None:
-            raise RuntimeError(
-                "No spaCy English model found. Run: "
-                "python -m spacy download en_core_web_sm"
-            )
     return _nlp
 
 
@@ -176,4 +171,4 @@ def _word_overlap_fallback(answer: str, context: str,
     if not words:
         return True
     overlap = sum(1 for w in words if w in context) / len(words)
-    return overlap >= min_overlap
+    return overlap >= min_overlap

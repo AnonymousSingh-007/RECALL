@@ -52,6 +52,13 @@ class BM25Store:
         ]
 
 
+def load_bm25(index_path: str = "indexing/indices/bm25_index.pkl") -> "BM25Store":
+    """Convenience loader used by main.py at startup."""
+    store = BM25Store(index_path)
+    store.load()
+    return store
+
+
 if __name__ == "__main__":
     build_bm25_index(
         corpus_path="indexing/corpus_sample.jsonl",
