@@ -2,19 +2,108 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>RECALL</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="RECALL — Voice-enabled RAG pipeline for intelligent document retrieval and question answering." />
+  <title>RECALL — Voice RAG</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <div class="bg-grid"></div>
+
   <main>
-    <h1>RECALL</h1>
-    <button id="mic-btn">🎙️ Ask</button>
-    <div id="answer-box" class="hidden">
-      <p id="answer-text"></p>
-      <div id="strategy-badge"></div>
-      <div id="latency-badge"></div>
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <span class="logo-icon">⚡</span>
+        <h1>RECALL</h1>
+      </div>
+      <p class="tagline">Voice-Powered Retrieval Augmented Generation</p>
+    </header>
+
+    <!-- Mic Section -->
+    <section class="mic-section">
+      <button id="mic-btn" class="mic-btn" aria-label="Record voice query">
+        <svg id="mic-icon" class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+        <div id="mic-waves" class="mic-waves hidden">
+          <span></span><span></span><span></span>
+        </div>
+      </button>
+      <p id="mic-label" class="mic-label">Tap to ask a question</p>
+    </section>
+
+    <!-- Transcript display -->
+    <div id="transcript-box" class="transcript-box hidden">
+      <span class="transcript-tag">You said:</span>
+      <p id="transcript-text"></p>
+    </div>
+
+    <!-- Loading indicator -->
+    <div id="loading" class="loading hidden">
+      <div class="loading-dots">
+        <span></span><span></span><span></span>
+      </div>
+      <p>Searching knowledge base…</p>
+    </div>
+
+    <!-- Answer Card -->
+    <section id="answer-box" class="answer-card hidden">
+      <div class="answer-header">
+        <span class="answer-icon">💡</span>
+        <h2>Answer</h2>
+      </div>
+      <p id="answer-text" class="answer-text"></p>
+
+      <div class="meta-row">
+        <div id="strategy-badge" class="badge strategy-badge"></div>
+        <div id="confidence-badge" class="badge confidence-badge"></div>
+        <div id="grounded-badge" class="badge grounded-badge"></div>
+      </div>
+
+      <!-- Latency breakdown -->
+      <details id="latency-details" class="latency-details">
+        <summary>
+          <span class="latency-icon">⏱️</span>
+          <span id="total-latency">Total: —ms</span>
+        </summary>
+        <div class="latency-grid">
+          <div class="latency-item"><span class="latency-label">STT</span><span id="lat-stt" class="latency-value">—</span></div>
+          <div class="latency-item"><span class="latency-label">Classify</span><span id="lat-classify" class="latency-value">—</span></div>
+          <div class="latency-item"><span class="latency-label">Retrieve</span><span id="lat-retrieve" class="latency-value">—</span></div>
+          <div class="latency-item"><span class="latency-label">Rerank</span><span id="lat-rerank" class="latency-value">—</span></div>
+          <div class="latency-item"><span class="latency-label">Guardrail</span><span id="lat-guardrail" class="latency-value">—</span></div>
+          <div class="latency-item"><span class="latency-label">Generate</span><span id="lat-generate" class="latency-value">—</span></div>
+        </div>
+      </details>
+
+      <!-- Sources -->
+      <details id="sources-details" class="sources-details">
+        <summary>
+          <span class="sources-icon">📄</span>
+          <span id="sources-count">Sources (0)</span>
+        </summary>
+        <div id="sources-list" class="sources-list"></div>
+      </details>
+    </section>
+
+    <!-- Error display -->
+    <div id="error-box" class="error-box hidden">
+      <span class="error-icon">⚠️</span>
+      <p id="error-text"></p>
     </div>
   </main>
+
+  <footer class="footer">
+    <p>Built for HH Goa 2026 — Task 2</p>
+  </footer>
+
   <script src="app.js"></script>
 </body>
 </html>
