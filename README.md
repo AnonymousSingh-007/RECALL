@@ -4,15 +4,15 @@ Voice-enabled RAG pipeline — HH Goa 2026, Task 2.
 
 ## Architecture
 
-Voice → Sarvam STT → Query Classifier → Chunking Strategy Router →
-Hybrid Retrieval (FAISS + BM25, parallel) → RRF Fusion → Cross-Encoder Rerank →
-Guardrails → Claude Haiku Generation → Structured Output
+Voice → Sarvam STT → Guardrails (input safety + language check) → Query Classifier →
+Chunking Strategy Router → Hybrid Retrieval (FAISS + BM25, parallel) → RRF Fusion →
+Cross-Encoder Rerank → Guardrails (relevance + grounding) → LLM Generation → Structured Output
 
 Four chunking strategies, selected at query time rather than applied uniformly:
 - **Semantic** — splits at embedding-similarity shifts between sentences
 - **Sliding window** — fixed 256-token chunks, 64-token overlap
 - **Hierarchical** — parent-child chunks (512/64 tokens), retrieves child, returns parent context
-- **Metadata-aware** — whole-passage chunks, tagged with query_type/is_selected/language for filtered retrieval
+- **Metadata-aware** — whole-passage chunks, tagged with query_type/is_selected/language
 
 ## Dataset
 
@@ -30,12 +30,13 @@ venv\Scripts\Activate.ps1        # Windows
 source venv/bin/activate         # macOS/Linux
 
 pip install -r requirements.txt
-cp .env.example .env             # fill in SARVAM_API_KEY and ANTHROPIC_API_KEY
+python -m spacy download en_core_web_sm
+cp .env.example .env             # fill in SARVAM_API_KEY, GROQ_API_KEY
 \`\`\`
 
-### GPU machine only (indexing, embeddings)
+### GPU machine only (indexing, embeddings, reranking)
 
-Blackwell-series GPUs (RTX 50xx) need a nightly PyTorch build with CUDA 12.8 support — stable/cu121/cu124 builds don't recognize `sm_120`:
+Blackwell-series GPUs (RTX 50xx) need a nightly PyTorch build with CUDA 12.8 support:
 
 \`\`\`bash
 pip uninstall torch -y
@@ -46,52 +47,61 @@ Verify:
 \`\`\`bash
 python -c "import torch; print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0))"
 \`\`\`
-Should print `True` with no `sm_120 is not compatible` warning.
 
 ### Run the server
 
 \`\`\`bash
 uvicorn main:app --reload
 \`\`\`
+Indices load once at startup (printed to console: "RECALL: all indices loaded, harness ready."). Check `/health` for `harness_ready: true` before testing queries.
 
 ## Building the corpus + indices (GPU machine)
 
 \`\`\`bash
-python indexing/inspect_dataset.py               # confirm schema
-python indexing/build_corpus.py                  # flatten full dataset -> corpus_english.jsonl
-python indexing/sample_corpus.py                 # stratified sample -> corpus_sample.jsonl
-python indexing/build_strategy2_index.py         # sliding window FAISS index
-python indexing/build_strategy3_hierarchical.py  # hierarchical parent-child FAISS index
-python indexing/build_strategy1_semantic.py      # semantic FAISS index
-python indexing/build_strategy4_metadata.py      # metadata-aware FAISS index
+python indexing/inspect_dataset.py
+python indexing/build_corpus.py
+python indexing/sample_corpus.py
+python indexing/build_strategy2_index.py
+python indexing/build_strategy3_hierarchical.py
+python indexing/build_strategy1_semantic.py
+python indexing/build_strategy4_metadata.py
+python -m backend.retriever.bm25_store
 \`\`\`
 
-Corpus and index files are gitignored (too large for GitHub). Shared via Drive between collaborators rather than committed.
+All index/corpus files are gitignored (too large for GitHub) — share via Drive, rebuild locally, or regenerate from scratch.
 
 ### Index sizes (15K query / ~150K passage sample)
 
-| Strategy | Chunks | Notes |
-|---|---|---|
-| Sliding window | 149,793 | 256 tokens, 64 overlap |
-| Hierarchical | 189,910 children | across 149,784 parents |
-| Semantic | 298,409 | variable length, similarity-split |
-| Metadata-aware | 149,784 | whole passages, no sub-splitting |
+| Strategy | Chunks |
+|---|---|
+| Sliding window | 149,793 |
+| Hierarchical | 189,910 children / 149,784 parents |
+| Semantic | 298,409 |
+| Metadata-aware | 149,784 |
+| BM25 | 149,784 |
 
-## BM25
+## Guardrails
 
-\`\`\`bash
-python -m backend.retriever.bm25_store   # builds indexing/indices/bm25_index.pkl
-\`\`\`
+- **Layer 1** — input safety (blocklist)
+- **Layer 2** — relevance gate (RRF score threshold)
+- **Layer 3** — language mismatch detection
+- **Layer 4** — grounding check (spaCy noun-phrase overlap)
+
+## Generation
+
+Currently wired for Anthropic Claude; swapping to Groq's free tier (Llama 3.1 8B) to avoid API costs during testing.
 
 ## Team
 
-- **Samratth Singh** — retrieval, chunking strategies, FAISS indexing, GPU embedding pipeline
-- **Snehal** — Sarvam STT integration, harness orchestration, guardrails, frontend, benchmarking
+- **Samratth Singh** — retrieval, chunking strategies, FAISS indexing, GPU embedding pipeline, harness wiring, reranker
+- **Snehal** — Sarvam STT integration, guardrails Layer 3/4, frontend, benchmark script
 
 ## Status
 
 ✅ All 4 chunking strategies built and indexed
 ✅ BM25 index built
-✅ Guardrails Layers 1 & 2 live
-✅ STT confirmed working end-to-end
-🚧 Next: wire `faiss_store.py` to load all 4 indices, finish `hybrid.py` RRF fusion, full harness integration
+✅ Guardrails Layers 1–4 live and tested
+✅ Full harness wired end-to-end — voice in, answer out, confirmed working
+✅ Frontend built (mic input, strategy badges, latency breakdown)
+✅ Benchmark script built
+🚧 Next: swap generator to Groq (free tier), real latency benchmarking on warm server, frontend polish
