@@ -32,7 +32,7 @@ async def generate(query: str, chunks: list[dict]) -> str:
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": "llama-3.1-8b-instant",
+                    "model": "openai/gpt-oss-20b",
                     "messages": [
                         {"role": "system", "content": SYSTEM_PROMPT},
                         {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {query}"},
