@@ -1,0 +1,20 @@
+sliding_window:
+  size: 256
+  overlap: 64
+
+semantic:
+  similarity_threshold: 0.85
+  model: all-MiniLM-L6-v2
+
+hierarchical:
+  parent_size: 512
+  child_size: 64
+
+metadata_aware:
+  respect_passage_boundaries: true
+
+embedding:
+  model: all-MiniLM-L6-v2
+  dim: 384
+  batch_size: 512
+  device: cuda

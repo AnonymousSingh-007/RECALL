@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.env
+venv/
+.venv/
+indexing/indices/
+indexing/corpus_english.jsonl
+indexing/corpus_sample.jsonl
+*.faiss
+*.pkl
+test_data/
+benchmarks/results/
+.DS_Store
+node_modules/
+PROJECT_MAP.md

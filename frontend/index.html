@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="RECALL — Voice-enabled RAG pipeline for intelligent document retrieval and question answering." />
+  <title>RECALL — Voice RAG</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Ambient background layers -->
+  <div class="bg-grid"></div>
+  <div class="bg-glow bg-glow--1"></div>
+  <div class="bg-glow bg-glow--2"></div>
+  <div id="particles" class="particles"></div>
+
+  <main>
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <div class="logo-orb">
+          <span class="logo-orb-inner"></span>
+        </div>
+        <h1>RECALL</h1>
+      </div>
+      <p class="tagline">Voice-Powered Retrieval Augmented Generation</p>
+      <div class="status-pill">
+        <span class="status-dot"></span>
+        <span class="status-text">Pipeline Ready</span>
+      </div>
+    </header>
+
+    <!-- Mic Section with 3D Orb -->
+    <section class="mic-section">
+      <div class="orb-container" id="orb-container">
+        <canvas id="orb-canvas" width="280" height="280"></canvas>
+        <button id="mic-btn" class="mic-btn glass" aria-label="Record voice query">
+          <svg id="mic-icon" class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+          <svg id="stop-icon" class="stop-icon hidden" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="6" width="12" height="12" rx="2"/>
+          </svg>
+        </button>
+      </div>
+      <p id="mic-label" class="mic-label">Tap to ask a question</p>
+
+      <!-- Optional text query bar -->
+      <form id="text-form" class="text-query-form glass">
+        <input type="text" id="text-input" class="text-input" placeholder="Or type a question and press Enter..." autocomplete="off" />
+        <button type="submit" id="text-send-btn" class="text-send-btn" aria-label="Submit question">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </form>
+    </section>
+
+    <!-- Transcript display -->
+    <div id="transcript-box" class="transcript-box glass hidden">
+      <span class="transcript-tag">You said:</span>
+      <p id="transcript-text"></p>
+    </div>
+
+    <!-- Loading indicator -->
+    <div id="loading" class="loading hidden">
+      <div class="loading-spinner">
+        <svg viewBox="0 0 50 50">
+          <circle cx="25" cy="25" r="20" fill="none" stroke="url(#spinner-grad)" stroke-width="3" stroke-linecap="round" stroke-dasharray="80 200" stroke-dashoffset="0">
+            <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1.2s" repeatCount="indefinite"/>
+          </circle>
+          <defs>
+            <linearGradient id="spinner-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#3884FF"/>
+              <stop offset="100%" stop-color="#6C5CE7"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <p>Searching knowledge base…</p>
+    </div>
+
+    <!-- Answer Card -->
+    <section id="answer-box" class="answer-card glass hidden">
+      <div class="answer-header">
+        <div class="answer-icon-wrap">
+          <span class="answer-icon">💡</span>
+        </div>
+        <h2>Answer</h2>
+      </div>
+      <p id="answer-text" class="answer-text"></p>
+
+      <div class="meta-row">
+        <div id="strategy-badge" class="badge strategy-badge"></div>
+        <div id="confidence-badge" class="badge confidence-badge"></div>
+        <div id="grounded-badge" class="badge grounded-badge"></div>
+      </div>
+
+      <!-- Latency breakdown -->
+      <details id="latency-details" class="latency-details glass-inner">
+        <summary>
+          <span class="latency-icon">⏱️</span>
+          <span id="total-latency">Total: —ms</span>
+          <span class="chevron">›</span>
+        </summary>
+        <div class="latency-grid">
+          <div class="latency-item"><span class="latency-label">STT</span><span id="lat-stt" class="latency-value">—</span></div>
+          <div class="latency-item"><span class="latency-label">Classify</span><span id="lat-classify" class="latency-value">—</span></div>
+          <div class="latency-item"><span class="latency-label">Retrieve</span><span id="lat-retrieve" class="latency-value">—</span></div>
+          <div class="latency-item"><span class="latency-label">Rerank</span><span id="lat-rerank" class="latency-value">—</span></div>
+          <div class="latency-item"><span class="latency-label">Guardrail</span><span id="lat-guardrail" class="latency-value">—</span></div>
+          <div class="latency-item"><span class="latency-label">Generate</span><span id="lat-generate" class="latency-value">—</span></div>
+        </div>
+      </details>
+
+      <!-- Sources -->
+      <details id="sources-details" class="sources-details glass-inner">
+        <summary>
+          <span class="sources-icon">📄</span>
+          <span id="sources-count">Sources (0)</span>
+          <span class="chevron">›</span>
+        </summary>
+        <div id="sources-list" class="sources-list"></div>
+      </details>
+    </section>
+
+    <!-- Error display -->
+    <div id="error-box" class="error-box glass hidden">
+      <span class="error-icon">⚠️</span>
+      <p id="error-text"></p>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>Built for HH Goa 2026 — Task 2</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+--index-url https://download.pytorch.org/whl/nightly/cu128
+--extra-index-url https://pypi.org/simple
+torch

@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+pydantic
+sentence-transformers
+faiss-cpu
+rank-bm25
+spacy
+anthropic
+httpx
+datasets
+pyyaml
+numpy
+python-dotenv
+pandas
+python-multipart
