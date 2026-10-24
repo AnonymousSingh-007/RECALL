@@ -13,7 +13,8 @@ Never invent facts. Cite the source chunk ID in your answer."""
 
 
 async def generate(query: str, chunks: list[dict]) -> str:
-    if not GROQ_API_KEY:
+    key = GROQ_API_KEY or os.getenv("GROQ_API_KEY")
+    if not key:
         if chunks:
             return f"[NO API KEY] Top match: {chunks[0]['text'][:300]}"
         return "I don't have sufficient context to answer this question."
@@ -28,7 +29,7 @@ async def generate(query: str, chunks: list[dict]) -> str:
             resp = await client.post(
                 GROQ_URL,
                 headers={
-                    "Authorization": f"Bearer {GROQ_API_KEY}",
+                    "Authorization": f"Bearer {key}",
                     "Content-Type": "application/json",
                 },
                 json={

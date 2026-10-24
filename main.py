@@ -83,3 +83,29 @@ async def query_endpoint(file: UploadFile = File(...)):
         print(f"Harness failed: {exc}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal error: {exc}")
+
+
+from pydantic import BaseModel
+
+class TextQueryRequest(BaseModel):
+    query: str
+
+@app.post("/query-text")
+async def query_text_endpoint(req: TextQueryRequest):
+    """Accept a text query, run RAG pipeline without STT."""
+    if harness is None:
+        raise HTTPException(status_code=503, detail="Harness not ready yet — server still starting up")
+
+    query_str = req.query.strip()
+    if not query_str:
+        raise HTTPException(status_code=400, detail="Empty query")
+
+    try:
+        response = await harness.run_text(query_str)
+        return response.model_dump()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        print(f"Harness failed: {exc}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal error: {exc}")

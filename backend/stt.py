@@ -14,12 +14,13 @@ async def transcribe(audio_bytes: bytes, filename: str = "audio.wav", content_ty
 
     Response JSON: {"request_id": ..., "transcript": ..., "language_code": ...}
     """
+    key = SARVAM_API_KEY or os.getenv("SARVAM_API_KEY")
     for attempt in range(retries + 1):
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.post(
                     SARVAM_STT_URL,
-                    headers={"api-subscription-key": SARVAM_API_KEY},
+                    headers={"api-subscription-key": key},
                     files={"file": (filename, audio_bytes, content_type)},
                     data={"model": "saaras:v3"},
                 )
