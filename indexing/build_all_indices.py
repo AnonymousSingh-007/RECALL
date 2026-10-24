@@ -1,4 +1,6 @@
-"""Build demo corpus and all 4 FAISS indices + BM25 index."""
+"""⚠️ DEMO/TEST ONLY — builds indices from a 10-passage hardcoded corpus.
+Running this OVERWRITES the real 150K-passage indices at the same paths.
+Real indexing: use build_strategy1_semantic.py through build_strategy4_metadata.py instead."""
 import os
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["OMP_NUM_THREADS"] = "1"
