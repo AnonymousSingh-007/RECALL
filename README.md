@@ -1,30 +1,113 @@
-# RECALL
+# RECALL 🎙️
 
-Voice-enabled RAG pipeline — HH Goa 2026, Task 2.
+> Voice-enabled RAG pipeline — built for **HH Goa 2026, Task 2**
 
-## Architecture
+Ask it a question out loud or type it. It retrieves across 150K+ passages using four different chunking strategies, reranks, checks its own answer is actually grounded, and refuses rather than makes things up.
 
-Voice → Sarvam STT → Guardrails (input safety + language check) → Query Classifier →
-Chunking Strategy Router → Hybrid Retrieval (FAISS + BM25, parallel) → RRF Fusion →
-Cross-Encoder Rerank → Guardrails (relevance + grounding) → LLM Generation → Structured Output
+---
 
-Four chunking strategies, selected at query time rather than applied uniformly:
-- **Semantic** — splits at embedding-similarity shifts between sentences
-- **Sliding window** — fixed 256-token chunks, 64-token overlap
-- **Hierarchical** — parent-child chunks (512/64 tokens), retrieves child, returns parent context
-- **Metadata-aware** — whole-passage chunks, tagged with query_type/is_selected/language
+## ✨ Highlights
 
-## Dataset
+| | |
+|---|---|
+| 🧩 **4 chunking strategies** | Semantic · Sliding Window · Hierarchical · Metadata-aware — picked per query |
+| 🔀 **Hybrid retrieval** | FAISS (dense) + BM25 (lexical), fused with Reciprocal Rank Fusion |
+| 🎯 **Cross-encoder rerank** | GPU-accelerated, re-scores top candidates before generation |
+| 🛡️ **4-layer guardrails** | Input safety → relevance gate → language check → grounding check |
+| 🗣️ **Voice-native** | Sarvam STT in, Groq LLM out, sub-second retrieval |
+| 📚 **150K+ passages** | MSMARCO-XI (bilingual) + Sherlock Holmes + Merchant of Venice |
 
-[ai4bharat/MSMARCO-XI](https://huggingface.co/datasets/ai4bharat/MSMARCO-XI) — bilingual (Hindi/English) MS MARCO translation dataset. Each row contains an English query (`Eng_Query`), 10 candidate English passages (`passages.English_passages`), and gold relevance labels (`passages.is_selected`).
+---
 
-Working corpus: a stratified 15,000-query sample (~150K passages), flattened and saved locally as `indexing/corpus_sample.jsonl` (gitignored — regenerate via `indexing/sample_corpus.py`).
+## 🧭 How a query flows
 
-## Setup
+```
+🎤 Voice / ⌨️ Text
+        │
+        ▼
+  Sarvam STT
+        │
+        ▼
+  Guardrails (safety + language)
+        │
+        ▼
+  Query Classifier → Strategy Router
+        │
+        ▼
+  Hybrid Retrieval  (FAISS ∥ BM25)
+        │
+        ▼
+  RRF Fusion
+        │
+        ▼
+  Cross-Encoder Rerank
+        │
+        ▼
+  Guardrails (relevance + grounding)
+        │
+        ▼
+  Groq Generation
+        │
+        ▼
+  📋 Structured Answer
+```
+
+---
+
+## 🧩 Chunking strategies
+
+<details>
+<summary><b>Semantic</b> — splits where meaning shifts</summary>
+
+Splits text at embedding-similarity drops between consecutive sentences, rather than at a fixed length. Produces the most "meaning-shaped" chunks.
+</details>
+
+<details>
+<summary><b>Sliding window</b> — fixed-size, overlapping</summary>
+
+256-token chunks, 64-token overlap. The reliable baseline.
+</details>
+
+<details>
+<summary><b>Hierarchical</b> — parent/child</summary>
+
+Retrieves on small 64-token child chunks for precision, returns the full 512-token parent for context.
+</details>
+
+<details>
+<summary><b>Metadata-aware</b> — whole passage</summary>
+
+No sub-splitting — keeps `query_type`, `is_selected`, and language tags attached to the full passage.
+</details>
+
+---
+
+## 📊 Dataset
+
+**[ai4bharat/MSMARCO-XI](https://huggingface.co/datasets/ai4bharat/MSMARCO-XI)** — bilingual (Hindi/English) MS MARCO translation, plus two public-domain literary works via Project Gutenberg (*The Adventures of Sherlock Holmes*, *The Merchant of Venice*) merged in to stress-test retrieval across factual and narrative text.
+
+**~150K passages** sampled and flattened into `indexing/corpus_sample.jsonl` *(gitignored — regenerate locally, see below)*.
+
+---
+
+## 🛡️ Guardrails
+
+| Layer | Checks |
+|---|---|
+| 1 | Input safety (blocklist) |
+| 2 | Relevance gate (RRF score threshold) |
+| 3 | Language mismatch |
+| 4 | Grounding (spaCy noun-phrase overlap vs. retrieved context) |
+
+If retrieval comes back irrelevant, RECALL says so instead of confidently making something up — verified against adversarial and out-of-corpus queries.
+
+---
+
+## 🚀 Setup
 
 ### Common (both machines)
 
-\`\`\`bash
+```bash
 py -3.11 -m venv venv
 venv\Scripts\Activate.ps1        # Windows
 source venv/bin/activate         # macOS/Linux
@@ -32,76 +115,77 @@ source venv/bin/activate         # macOS/Linux
 pip install -r requirements.txt
 python -m spacy download en_core_web_sm
 cp .env.example .env             # fill in SARVAM_API_KEY, GROQ_API_KEY
-\`\`\`
+```
 
-### GPU machine only (indexing, embeddings, reranking)
+### GPU machine only (indexing / embeddings / reranking)
 
-Blackwell-series GPUs (RTX 50xx) need a nightly PyTorch build with CUDA 12.8 support:
+Blackwell GPUs (RTX 50-series) need a nightly PyTorch build with CUDA 12.8 support:
 
-\`\`\`bash
+```bash
 pip uninstall torch -y
 pip install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu128
-\`\`\`
+```
 
 Verify:
-\`\`\`bash
+```bash
 python -c "import torch; print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0))"
-\`\`\`
+```
 
 ### Run the server
 
-\`\`\`bash
+```bash
 uvicorn main:app --reload
-\`\`\`
-Indices load once at startup (printed to console: "RECALL: all indices loaded, harness ready."). Check `/health` for `harness_ready: true` before testing queries.
+```
 
-## Building the corpus + indices (GPU machine)
+Indices load once at startup. Check `/health` → `harness_ready: true` before querying.
 
-\`\`\`bash
+---
+
+## 🏗️ Building the corpus + indices (GPU machine)
+
+```bash
 python indexing/inspect_dataset.py
 python indexing/build_corpus.py
 python indexing/sample_corpus.py
+python indexing/add_literary_corpus.py
 python indexing/build_strategy2_index.py
 python indexing/build_strategy3_hierarchical.py
 python indexing/build_strategy1_semantic.py
 python indexing/build_strategy4_metadata.py
 python -m backend.retriever.bm25_store
-\`\`\`
+```
 
-All index/corpus files are gitignored (too large for GitHub) — share via Drive, rebuild locally, or regenerate from scratch.
+> ⚠️ `indexing/build_all_indices.py` is a **demo-only** script with a hardcoded 10-passage corpus. Do not run it against the real indices — same output paths.
 
-### Index sizes (15K query / ~150K passage sample)
+All index/corpus files are gitignored — share via Drive or regenerate locally.
 
-| Strategy | Chunks |
+---
+
+## 🧠 Generation
+
+Groq (`openai/gpt-oss-20b`) — OpenAI-compatible API, free tier.
+
+---
+
+## 👥 Team
+
+| | |
 |---|---|
-| Sliding window | 149,793 |
-| Hierarchical | 189,910 children / 149,784 parents |
-| Semantic | 298,409 |
-| Metadata-aware | 149,784 |
-| BM25 | 149,784 |
+| **Samratth Singh** | Retrieval, chunking strategies, FAISS indexing, GPU embedding pipeline, harness, reranker, corpus curation |
+| **Snehal** | Sarvam STT, guardrails L3/L4, frontend (glassmorphism UI, 3D orb), benchmarking |
 
-## Guardrails
+---
 
-- **Layer 1** — input safety (blocklist)
-- **Layer 2** — relevance gate (RRF score threshold)
-- **Layer 3** — language mismatch detection
-- **Layer 4** — grounding check (spaCy noun-phrase overlap)
+## ✅ Status
 
-## Generation
+- [x] All 4 chunking strategies built and indexed
+- [x] BM25 index built
+- [x] Guardrails L1–L4 live and tested
+- [x] Full harness wired end-to-end — voice and text in, grounded answer out
+- [x] Real generation via Groq
+- [x] Frontend complete — glassmorphism, 3D orb, strategy/confidence/latency display
+- [x] Literary corpus added and verified
 
-Currently wired for Anthropic Claude; swapping to Groq's free tier (Llama 3.1 8B) to avoid API costs during testing.
+---
 
-## Team
-
-- **Samratth Singh** — retrieval, chunking strategies, FAISS indexing, GPU embedding pipeline, harness wiring, reranker
-- **Snehal** — Sarvam STT integration, guardrails Layer 3/4, frontend, benchmark script
-
-## Status
-
-✅ All 4 chunking strategies built and indexed
-✅ BM25 index built
-✅ Guardrails Layers 1–4 live and tested
-✅ Full harness wired end-to-end — voice in, answer out, confirmed working
-✅ Frontend built (mic input, strategy badges, latency breakdown)
-✅ Benchmark script built
-🚧 Next: swap generator to Groq (free tier), real latency benchmarking on warm server, frontend polish
+<p align="center"><sub>Built for HH Goa 2026 — Task 2</sub></p>
